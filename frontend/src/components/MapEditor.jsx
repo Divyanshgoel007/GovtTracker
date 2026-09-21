@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, Trash2, GripVertical, MapPin, X, Search, Navigation } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, GripVertical, MapPin, X, Search, Navigation, Plus } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -176,7 +176,7 @@ const SortableStopRow = ({ stop, index, updateStopName, removeStop, moveStop }) 
   );
 };
 
-const MapEditor = ({ initialRoute = null, initialStops = [], onSave, panelContainerRef }) => {
+const MapEditor = ({ initialRoute = null, initialStops = [], initialSourceQuery = '', initialDestinationQuery = '', onSave, panelContainerRef }) => {
   const mapNode = useRef(null);
   const mapInstance = useRef(null);
   const polylineLayer = useRef(null);
@@ -196,8 +196,8 @@ const MapEditor = ({ initialRoute = null, initialStops = [], onSave, panelContai
 
   // Auto-Routing State
   const [waypoints, setWaypoints] = useState([
-    { id: 'start', label: 'Search starting point...', query: '', results: [], point: null },
-    { id: 'end', label: 'Search destination...', query: '', results: [], point: null }
+    { id: 'start', label: 'Search starting point...', query: initialSourceQuery, results: [], point: null },
+    { id: 'end', label: 'Search destination...', query: initialDestinationQuery, results: [], point: null }
   ]);
   const [isRouting, setIsRouting] = useState(false);
   const searchTimeouts = useRef({});
@@ -225,9 +225,7 @@ const MapEditor = ({ initialRoute = null, initialStops = [], onSave, panelContai
     }, 600);
   };
 
-  const handleGenerateRoute = async () => {
-    const validPoints = waypoints.filter(wp => wp.point != null);
-    if (validPoints.length < 2) return;
+  const generateRouteForPoints = async (points) => {
     setIsRouting(true);
     setError('');
     try {
@@ -238,7 +236,7 @@ const MapEditor = ({ initialRoute = null, initialStops = [], onSave, panelContai
       try {
         if (apiKey && provider === 'tomtom') {
           // Try TomTom API
-          const pointsStr = validPoints.map(wp => `${wp.point.lat},${wp.point.lng}`).join(':');
+          const pointsStr = points.map(wp => `${wp.lat},${wp.lng}`).join(':');
           const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${pointsStr}/json?key=${apiKey}`;
           const res = await fetch(tomtomUrl);
           const data = await res.json();
@@ -255,7 +253,7 @@ const MapEditor = ({ initialRoute = null, initialStops = [], onSave, panelContai
       } catch (apiError) {
         console.warn('Custom Routing API failed, falling back to OSRM:', apiError);
         // Fallback to OSRM
-        const pointsStr = validPoints.map(wp => `${wp.point.lng},${wp.point.lat}`).join(';');
+        const pointsStr = points.map(wp => `${wp.lng},${wp.lat}`).join(';');
         const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${pointsStr}?geometries=geojson&overview=full`);
         const data = await res.json();
         if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
@@ -280,10 +278,10 @@ const MapEditor = ({ initialRoute = null, initialStops = [], onSave, panelContai
       
       // Auto-add all points as stops
       if (stops.length === 0) {
-         const newStops = validPoints.map((wp, i) => {
+         const newStops = points.map((wp, i) => {
            const seq = i;
-           const name = wp.point.name.split(',')[0];
-           return { id: `stop-${i}-${Date.now()}`, name, lat: wp.point.lat, lng: wp.point.lng, seq };
+           const name = wp.name ? wp.name.split(',')[0] : `Stop ${i+1}`;
+           return { id: `stop-${i}-${Date.now()}`, name, lat: wp.lat, lng: wp.lng, seq };
          });
          
          newStops.forEach(addMarkerLayer);
@@ -299,6 +297,12 @@ const MapEditor = ({ initialRoute = null, initialStops = [], onSave, panelContai
     } finally {
       setIsRouting(false);
     }
+  };
+
+  const handleGenerateRoute = async () => {
+    const validPoints = waypoints.filter(wp => wp.point != null);
+    if (validPoints.length < 2) return;
+    await generateRouteForPoints(validPoints.map(wp => wp.point));
   };
 
   const sortedStops = useMemo(() => reindexStops(stops), [stops]);
@@ -484,6 +488,44 @@ const MapEditor = ({ initialRoute = null, initialStops = [], onSave, panelContai
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Effect to handle initial queries
+  useEffect(() => {
+    const geocodeInitial = async () => {
+      if (!initialSourceQuery || !initialDestinationQuery || initialRoute) return;
+      setIsRouting(true);
+      setError('');
+      try {
+        const res1 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(initialSourceQuery)}&limit=1`);
+        const data1 = await res1.json();
+        
+        const res2 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(initialDestinationQuery)}&limit=1`);
+        const data2 = await res2.json();
+
+        if (data1.length > 0 && data2.length > 0) {
+          const p1 = { lat: parseFloat(data1[0].lat), lng: parseFloat(data1[0].lon), name: data1[0].display_name };
+          const p2 = { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon), name: data2[0].display_name };
+          
+          setWaypoints([
+            { id: 'start', label: 'Search starting point...', query: data1[0].display_name, results: [], point: p1 },
+            { id: 'end', label: 'Search destination...', query: data2[0].display_name, results: [], point: p2 }
+          ]);
+          
+          await generateRouteForPoints([p1, p2]);
+        } else {
+          setError('Could not auto-find locations for the provided Source or Destination.');
+        }
+      } catch (e) {
+        setError('Auto-routing failed: ' + e.message);
+      } finally {
+        setIsRouting(false);
+      }
+    };
+
+    if (mapInstance.current) {
+      geocodeInitial();
+    }
+  }, [initialSourceQuery, initialDestinationQuery]); // Intentionally run only on mount/change
 
   const handleSave = () => {
     setError('');

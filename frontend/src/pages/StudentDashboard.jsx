@@ -602,7 +602,7 @@ const StudentDashboard = () => {
       localStorage.setItem(NOTIFICATION_PREF_KEY, 'true');
       toast.success('Notifications enabled');
     } catch (err) {
-      toast.error('Failed to enable notifications');
+      toast.error(err.response?.data?.message || 'Failed to enable notifications');
     }
   };
 

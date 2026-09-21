@@ -28,6 +28,10 @@ const ManageRoutes = () => {
   const [confirmState, setConfirmState] = useState({ open: false, target: null });
   const panelRef = useRef(null);
 
+  // New state for guided flow
+  const [sourceQuery, setSourceQuery] = useState('');
+  const [destinationQuery, setDestinationQuery] = useState('');
+
   // Pending review data from Step 2
   const [pendingGeojson, setPendingGeojson] = useState(null);
   const [pendingStops, setPendingStops] = useState([]);
@@ -47,6 +51,8 @@ const ManageRoutes = () => {
 
   const resetEditor = () => {
     setRouteName('');
+    setSourceQuery('');
+    setDestinationQuery('');
     setInitialRoute(null);
     setInitialStops([]);
     setSelectedRoute(null);
@@ -210,7 +216,33 @@ const ManageRoutes = () => {
                   autoFocus
                 />
 
-                <div className="rw-form-actions">
+                {!selectedRoute && (
+                  <>
+                    <label className="rw-input-label mt-4">
+                      <MapPin className="w-3.5 h-3.5" />
+                      Source (Starting Point)
+                    </label>
+                    <input
+                      className="rw-input"
+                      value={sourceQuery}
+                      onChange={(e) => setSourceQuery(e.target.value)}
+                      placeholder="e.g. Connaught Place"
+                    />
+
+                    <label className="rw-input-label mt-4">
+                      <MapPin className="w-3.5 h-3.5" />
+                      Destination (Ending Point)
+                    </label>
+                    <input
+                      className="rw-input"
+                      value={destinationQuery}
+                      onChange={(e) => setDestinationQuery(e.target.value)}
+                      placeholder="e.g. India Gate"
+                    />
+                  </>
+                )}
+
+                <div className="rw-form-actions mt-6">
                   {selectedRoute && (
                     <>
                       <button onClick={() => duplicateRoute(selectedRoute)} className="rw-btn rw-btn-outline">
@@ -336,6 +368,8 @@ const ManageRoutes = () => {
               key={editorKey}
               initialRoute={initialRoute}
               initialStops={initialStops}
+              initialSourceQuery={sourceQuery}
+              initialDestinationQuery={destinationQuery}
               onSave={handleMoveToReview}
               panelContainerRef={panelRef}
             />
