@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GovTracker</string>
+    <string name="title_activity_main">GovTracker</string>
+    <string name="package_name">com.govtracker.app</string>
+    <string name="custom_url_scheme">com.govtracker.app</string>
+</resources>
