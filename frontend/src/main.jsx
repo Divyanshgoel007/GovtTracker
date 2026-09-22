@@ -37,7 +37,7 @@ const router = createBrowserRouter(
         </ThemeProvider>
       ),
       children: [
-        { index: true, element: <Navigate to="/track" replace /> },
+        { index: true, element: <Navigate to="/login" replace /> },
         { path: 'login', element: <Login /> },
         { path: 'register', element: <Register /> },
         {

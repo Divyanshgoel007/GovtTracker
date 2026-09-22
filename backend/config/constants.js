@@ -14,7 +14,7 @@ module.exports = {
   SUSTAIN_TIME_MS: 3000,       // 3 seconds dwell time to confirm arrival
   LEAVE_RADIUS_METERS: 80,
   MIN_UPDATE_INTERVAL_MS: 1000,
-  ETA_ALPHA: 0.25,
+  ETA_ALPHA: 0.6,
   SEG_ALPHA: 0.15,
   MIN_SPEED_MPS: 0.8,
   ASSUMED_SPEED_MPS: 5, // ~18 km/h - conservative for stopped/traffic scenarios

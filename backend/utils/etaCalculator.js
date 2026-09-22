@@ -152,12 +152,16 @@ const computeRawEtas = async (state, position, speedMps = 0) => {
   
   let nextEtaMs;
   
-  // If within 100m of stop, use real-time distance calculation (not cached OSRM)
   if (distToNext < 100) {
+    // If very close, purely use live math
     nextEtaMs = (distToNext / velocity) * 1000;
   } else if (typeof state.osrmCache.firstSegmentDuration === 'number') {
-    // Use OSRM road distance for first segment when far from stop
-    nextEtaMs = state.osrmCache.firstSegmentDuration * 1000;
+    // Smoothly count down from the cached OSRM duration
+    const elapsedMs = now - state.osrmCache.timestamp;
+    const osrmRemainingMs = (state.osrmCache.firstSegmentDuration * 1000) - elapsedMs;
+    // Lower bound by live physics (distance / velocity) so it doesn't artificially drop if bus stops
+    const livePhysicsMs = (distToNext / velocity) * 1000;
+    nextEtaMs = Math.max(livePhysicsMs, osrmRemainingMs);
   } else {
     // Fallback: Use route projection or haversine
     nextEtaMs = (distToNext / velocity) * 1000;

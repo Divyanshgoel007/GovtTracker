@@ -447,7 +447,9 @@ const StudentDashboard = () => {
       // Fetch ETA only if there's an active trip
       if (tripRes.data) {
         const etaRes = await api.get('/students/eta').catch(() => ({ data: {} }));
-        if (typeof etaRes.data?.etaMinutes === 'number') {
+        if (typeof etaRes.data?.etaMs === 'number') {
+          setEta({ value: etaRes.data.etaMs, source: 'server', updatedAt: Date.now() });
+        } else if (typeof etaRes.data?.etaMinutes === 'number') {
           setEta({ value: etaRes.data.etaMinutes * 60 * 1000, source: 'server', updatedAt: Date.now() });
         }
         if (etaRes.data?.allEtas) {
